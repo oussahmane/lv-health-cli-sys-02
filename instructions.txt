@@ -1,0 +1,97 @@
+# 🏥 Healthcare Clinic Queue System - Execution Guide
+
+## 🛠️ 0️⃣ Prerequisites (Do this first!)
+**Database Service**: You MUST have your database server running (Laragon, XAMPP, or Docker).
+- If using **Laragon**: Open Laragon and click **"Start All"**.
+- The system connects to MySQL on port **3306**.
+
+---
+
+## 🏃‍♂️ Running the System
+Open **4 or 5 separate terminal windows** and run these commands from the project root.
+
+### 1️⃣ Backend API (Core Engine)
+- **Terminal 1**: 
+  ```bash
+  cd healthcare_api
+  php artisan serve
+  ```
+- **Access**: `http://localhost:8000`
+
+### 2️⃣ Real-Time Server (Reverb)
+- **Terminal 2**: 
+  ```bash
+  cd healthcare_api
+  php artisan reverb:start
+  ```
+*(Note: Real-time updates are configured via WebSockets. This must be running for the TV Display to work.)*
+
+### 3️⃣ Super Admin Dashboard (Portal)
+**Purpose**: System-wide management, clinic creation, and plan assignment.
+- **Terminal 3**: 
+  ```bash
+  cd healthcare_superadmin
+  npm run dev
+  ```
+- **Access**: `http://localhost:5176`
+- **Login**: `admin@system.com` / `password123`
+
+### 4️⃣ Clinic Staff Portal (Admin)
+**Purpose**: Dashboard for Owners, Doctors, and Secretaries to manage live queues.
+- **Terminal 4**: 
+  ```bash
+  cd healthcare_admin
+  npm run dev
+  ```
+- **Access**: `http://localhost:5174`
+- **Logins**: See `credentials.txt` for Demo Staff accounts.
+
+### 5️⃣ Patient View & TV Display (Frontend)
+**Purpose**: Public-facing registration and large-screen display.
+- **Terminal 5**: 
+  ```bash
+  cd healthcare_frontend
+  npm run dev
+  ```
+- **Registration**: `http://localhost:5175/q/[clinic-slug]`
+- **TV Display**: `http://localhost:5175/q/[clinic-slug]/display`
+
+---
+
+## 🏗️ Multi-Doctor & Room Workflow (IMPORTANT)
+
+Our platform supports professional clinics with multiple physical rooms.
+
+### 📍 Staff: Room Selection
+When logging into the **Clinic Staff Portal** (`:5174`):
+1. Look for the **"Active Room"** selector in the top banner.
+2. You must select a physical room (e.g., "Room 1", "Consultation A") before calling patients.
+3. Once selected, your room preference is remembered for that session.
+
+### 📺 TV Display: Multi-Counter Grid
+The TV Display (`:5175`) automatically detects all active rooms. 
+- It renders a professional grid layout showing which ticket is being served in which room.
+- New calls will "Flash" and trigger a chime notification.
+
+---
+
+## 💡 Important Notes & Troubleshooting
+
+### 🔗 "Clinic Not Found" Error
+The Patient View (`:5175`) requires a **slug** in the URL.
+- **Elite Medical Hub**: `http://localhost:5175/q/elite-medical`
+- **Prime Care Hub**: `http://localhost:5175/q/prime-care`
+
+### 🔄 Resetting to Demo State
+To wipe all data and restore the professional demo environment with rooms, staff, and patients:
+```bash
+cd healthcare_api
+php artisan migrate:fresh --seed
+```
+*This command resets RBAC permissions, Subscription Tiers, and creates the Demo Clinics.*
+
+### 🕰️ Development Bypass
+To test the queue during "Closed" hours:
+1. Open `.env` in `healthcare_api`.
+2. Set `BYPASS_WORKING_HOURS=true`.
+3. Set it back to `false` to enforce actual business hours.

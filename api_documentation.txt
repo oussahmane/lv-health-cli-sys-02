@@ -1,0 +1,100 @@
+# 🏥 Healthcare Clinic Queue Platform - API Documentation
+
+This document serves as a technical overview for developers working on the `healthcare_api` core.
+
+---
+
+## 🚀 1. Technology Stack
+- **Framework**: Laravel 11+
+- **Authentication**: Laravel Sanctum (Token-based API auth)
+- **Real-time Server**: Laravel Reverb (WebSockets for live queue updates)
+- **Database**: MySQL 8.0+
+- **Broadcasting**: Pusher-compatible protocol (handled by Reverb)
+
+---
+
+## 🏗️ 2. Core Architecture & Concepts
+
+### A. SaaS Multi-tenancy
+The system uses **Database-level logical scoping**. Every resource (Users, Counters, Queues, Settings) is tied to a `clinic_id`.
+- Data isolation is strictly enforced in Controllers and Services.
+- Clinics are identified via unique **Slugs** (e.g., `/q/elite-medical`).
+
+### B. Service-Oriented Logic
+To keep controllers "thin," business logic is encapsulated in the `app/Services` layer:
+- **`QueueService.php`**: Handled logic for ticket generation, calling the next patient, and triggering WebSocket events.
+- **`ClinicService.php`**: Handles clinic onboarding, plan management, and staff assignments.
+
+### C. RBAC (Role Based Access Control)
+The system uses a custom RBAC implementation managed via the `roles` and `permissions` tables.
+- **Roles**: `super_admin`, `clinic_admin`, `secretary`, `doctor`.
+- **Logic**: Middleware checks if a user has the required permission for a specific route.
+
+### D. SaaS Tiers & Plan Limits
+Clinics are assigned to **Plans** (e.g., Small, Enterprise).
+- **Middleware**: `CheckPlanLimits` intercepts requests (like creating a new room) and verifies if the clinic has reached its tier's maximum quota.
+
+---
+
+## 📂 3. Key Files & Responsibilities
+
+### Models (`app/Models`)
+- **`Clinic`**: The tenant entity. Stores settings, working hours, and subscription status.
+- **`User`**: Staff members linked to a clinic.
+- **`Counter`**: Represents a physical room or service point (e.g., "Consultation Room 1").
+- **`Queue`**: Represents a patient ticket. Statuses: `waiting`, `called`, `done`, `cancelled`.
+- **`Plan`**: SaaS tiers defining limits (max rooms, max daily patients).
+
+### Real-Time Events (`app/Events`)
+- **`QueuePatientJoined`**: Fired when a new ticket is taken.
+- **`QueueNextCalled`**: Fired when a staff member calls a patient. Contains the assigned `counter_id`.
+
+### Controllers (`app/Http/Controllers/Api`)
+- **`PublicQueueController`**: Public API for patient registration and TV Display data.
+- **`ClinicDashboardController`**: Protected API for staff to manage the live queue.
+- **`SuperAdminController`**: Global system management.
+
+---
+
+## 📡 4. WebSocket Implementation (Reverb)
+The API broadcasts events to private and public channels:
+- **Public**: `clinic.{slug}` (For TV Displays and Patient Status).
+- **Security**: Reverb handles the WebSocket handshake on port `8080`.
+
+---
+
+## 🛠️ 5. MVP Core Features
+1. **Multi-Room Support**: Staff specify their "Active Room" (Counter) to lock patients to specific physical points.
+2. **Unified Queue Pool**: Multiple rooms pull from a single shared daily queue.
+3. **Now Serving Logic**: Real-time multi-counter grid rendering on the TV Display.
+4. **Clinic Protection**: Working hours enforcement and daily maximum patient limits.
+5. **WhatsApp Ticket Mirroring**: API provides pre-formatted localized messages (Ticket #, Room #) for one-click sharing.
+
+---
+
+## 💻 6. Essential Developer Commands
+
+### Environment Setup
+```bash
+# Clean database reset with professional demo data
+php artisan migrate:fresh --seed
+```
+
+### Infrastructure Management
+```bash
+# Start the API server
+php artisan serve
+
+# Start the WebSocket server (CRITICAL for live updates)
+php artisan reverb:start
+
+# Monitor Background Tasks (Broadcasts)
+php artisan queue:listen
+```
+
+---
+
+## 🔐 7. Security Notes
+- All staff routes require a Sanctum `Bearer` token.
+- Public routes are throttled to prevent spam ticket generation.
+- Cross-clinic data leakage is prevented via global query scopes and explicit `clinic_id` filtering in Services.
